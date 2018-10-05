@@ -2,75 +2,15 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import numpy.lib.user_array as UsrArry
-# def get_cpt_func(name, grad=False):
-#     if not grad:
-#         funcs = {
-#             'add': (lambda x, y: x+y),
-#             'multi':  (lambda x, y: x*y),
-#             'divide': (lambda x, y: x/y),
-#             'dot': (lambda x, y: x.dot(y)),
-#             'sigmoid': (lambda x: 1 / (1+(-x).exp()))
-#         }
-#     else:
-#         funcs = {
-#             'add': (lambda x, y: x+y),
-#             'multi':  (lambda x, y: x*y),   
-#             'divide': (lambda x, y: x/y),
-#             'dot': (lambda x, y: x.dot(y)),
-#             'sigmoid': (lambda x: 1 / (1+(-x).exp())),
-#         }
-#     return funcs[name]
-
-# def type_limited(func):
-#     '''
-#     limit the inputs's type of the method of a `Tensor`.
-#     '''
-
-#     def wrapper(self, inputs):
-#         if not isinstance(inputs, Tensor):
-#             raise TypeError(
-#                 'Input data should be `Tensor`, not {}'.format(type(inputs)))
-#         return func(self, inputs)
-#     return wrapper
-
-# class CptNode(object):
-#     def __init__(self, inputs, fwd_func, bak_func, upper_grad, name):
-#         '''
-#         The node of a computational graph, representing a kind of computation.
-#         paramters:
-
-#         - inputs: Tensor(s) fed to the current node
-#         - fwd_fun: the forward computation of the current node
-#         - bak_func: derivative of the current node, used to backproping.
-#         - upper_grad: the grad from the upper nodes.
-#         - name: the name of the current node, choosed from the dict `name2func`.
-#         '''
-
-#         self.inputs = inputs
-#         self.fwd_func = fwd_func
-#         self.bak_func = bak_func
-#         self.upper_grad = upper_grad
-#         self.name = name
-
-#     def forward(self):
-#         self.output = self.fwd_func(self.inputs)
-#         return self.output
-
-#     def cal_grad(self, upper_grad):
-#         return self.bak_func(self.grad) * upper_grad
-
-#     def __str__(self):
-#         return 'ComputationNode: {}, input:{}, output:{}'.format(self.name, self.inputs, self.output)
-
 
 class Tensor(UsrArry.container):
-    def __init__(self, data, dtype=None, copy=True, need_grad=False, upper_nodes=None, bak_nodes=None, grad=None, name=None):
+    def __init__(self, data, dtype=None, copy=True, in_graph=False, upper_nodes=None, bak_nodes=None, grad=None):
         '''
         paramsters:
 
         - data: must be a list or other iterable object.
         - upper_node: the upper computational node of this Tensor.
-        - back_node: the computational node in the downstream.
+        - bak_node: the computational node in the downstream.
         - grad: the grad of this This node.
         - need_grad: need grad or not.
         - cpt_func: the computation to get the current Tensor node.
@@ -85,12 +25,59 @@ class Tensor(UsrArry.container):
         # super(Tensor, self).__init__(data, dtype=None, copy=True)
         # self.data = np.array(data)
 
-        self.need_grad = need_grad
+        self.in_graph = in_graph
         # self.cpt_func = get_cpt_func(name)
         # self.grad_func = get_cpt_func(name, grad=True)
-        self.grad = np.ones(self.data.shape) if self.need_grad else None
+        self.grad = np.ones(self.shape) if self.in_graph else None
         self.upper_nodes = upper_nodes
         self.bak_nodes = bak_nodes
+
+    def _add_to_graph(self):
+        pass
+
+    def __str__(self):
+        return super().__str__() + ', dtype={}, size={}\n'.format(self.dtype, self.shape)
+
+    def __abs__(self):
+        return super().__abs__()
+
+    def __neg__(self):
+        return super().__neg__()
+
+    def __add__(self, other):
+        return super().__add__(other)
+
+    __radd__ = __add__
+
+    def __iadd__(self, other):
+        return super().__iadd__(other)
+
+    def __sub__(self, other):
+        return super().__sub__(other)
+
+    def __rsub__(self, other):
+        return super().__rsub__(other)
+
+    def __isub__(self, other):
+        return super().__isub__(other)
+
+    def __mul__(self, other):
+        return super().__mul__(other)
+
+    __rmul__ = __mul__
+
+    def __imul__(self, other):
+        return super().__imul__(other)
+
+    def __div__(self, other):
+        return super().__div__(other)
+
+    def __rdiv__(self, other):
+        return super().__rdiv__(other)
+
+    def __idiv__(self, other):
+        return super().__idiv__(other)
+
 
 
 
@@ -107,5 +94,4 @@ class Tensor(UsrArry.container):
 
 if __name__ == '__main__':
     t1 = Tensor([1, 2, 3, 4])
-    t2 = Tensor([2, 3, 4, 5])
-    print(t1+t2)
+    print(t1)
