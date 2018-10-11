@@ -14,12 +14,11 @@ def raise_err(func):
 
 
 class Tensor(UsrArry.container):
-    def __init__(self, data, dtype=None, copy=True, need_grad=False, upper_nodes=None, bak_nodes=None, grad=None):
+    def __init__(self, data, dtype=None, copy=True, need_grad=False,  bak_nodes=None, grad=None):
         '''
         paramsters:
 
         - data: must be a list or other iterable object.
-        - upper_nodes: the upper computational node of this Tensor.
         - bak_nodes: the computational node in the downstream.
         - grad: the grad of this This node.
         - need_grad: need grad or not.
@@ -27,8 +26,9 @@ class Tensor(UsrArry.container):
 
         In a computational graph, a Tensor node looks like:
 
-            Forward: Tensor.bak_nodes ->(cpt_func)-> Tensor --> Tensor.upper_nodes
+            Forward: Tensor.bak_nodes ->(cpt_func)-> Tensor
             Backward: Tensor.bak_nodes <-(grad_func)<- Tensor
+
         '''
 
         UsrArry.container.__init__(self, data, dtype=None, copy=True)
@@ -37,7 +37,6 @@ class Tensor(UsrArry.container):
         self.cpt_name = None
         self.need_grad = need_grad
         self.grad = grad
-        # self.upper_nodes = upper_nodes
         self.bak_nodes = bak_nodes
 
     def _add_to_graph(self, upper_nodes, name, other=None):
@@ -54,7 +53,7 @@ class Tensor(UsrArry.container):
         #     other.upper_nodes = upper_nodes
 
     def __str__(self):
-        return super().__str__() + ', dtype={}, size={}\n'.format(self.dtype, self.shape)
+        return super().__str__() + '\ndtype={}, size={}\n'.format(self.dtype, self.shape)
 
     def __abs__(self):
         res = super().__abs__()
@@ -73,6 +72,9 @@ class Tensor(UsrArry.container):
         if self.need_grad:
             self._add_to_graph(res, 'add', other)
         return res
+
+    def __matmul__(self, other):
+        res = 
 
     __radd__ = __add__
 
@@ -108,17 +110,22 @@ class Tensor(UsrArry.container):
     def __imul__(self, other):
         return super().__imul__(other)
 
-    def __div__(self, other):
-        res = super().__div__(other)
+    def __truediv__(self, other):
+        res = Tensor(np.array(self) / np.array(other))
         if self.need_grad:
             self._add_to_graph(res, 'div', other)
         return res
 
-    def __rdiv__(self, other):
-        res = super().__rdiv__(other)
+    def __rtruediv__(self, other):
+        res = Tensor(np.array(other) / np.array(self))
         if self.need_grad:
             self._add_to_graph(res, 'div', other)
         return res
+
+    @raise_err
+    def __itruediv__(self, other):
+        return Tensor(np.array(self) / np.array(other))
+
 
     @raise_err
     def __idiv__(self, other):
@@ -141,6 +148,7 @@ class Tensor(UsrArry.container):
         return super().__imod__(other)
 
     def __divmod__(self, other):
+        print('divmoding')
         res = super().__divmod__(other)
         if self.need_grad:
             self._add_to_graph(res, 'divmod', other)
@@ -149,7 +157,7 @@ class Tensor(UsrArry.container):
     def __rdivmod__(self, other):
         res = super().__rdivmod__(other)
         if self.need_grad:
-            self._add_to_graph(res, 'rdivmod', other)
+            self._add_to_graph(res, 'divmod', other)
         return res
 
     def __pow__(self, other):
@@ -168,10 +176,22 @@ class Tensor(UsrArry.container):
     def __ipow__(self, other):
         return super().__ipow__(other)
 
+    def _get_grad(self):
+        fnuc_dict = {
+            'add': lambda x, y: 1, 
+            'mul': lambda x, y: y, x,
+            'sub': lambda x, ,
+            'neg': lambda x,
+            'div': '' 
+
+        }
+
+
     def backward(self):
-        pass
+        
 
 
 if __name__ == '__main__':
     t1 = Tensor([1, 2, 3, 4])
-    print(t1 + 1)
+    t2 = Tensor([4, 3, 2, 1])
+    print(t1 % t2)
