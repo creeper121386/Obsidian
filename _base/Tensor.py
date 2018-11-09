@@ -14,6 +14,8 @@ def raise_err(func):
 
 
 def _get_grad(name, inputs):
+    x = inputs[0]
+    y = inputs[1]
     fnuc_dict = {
         'add': lambda x, y: (1, 1),
         'mul': lambda x, y: (y, x),
@@ -25,7 +27,7 @@ def _get_grad(name, inputs):
         'matmul': lambda x, y: (),
         'transpose': lambda x, y: ()
     }
-    return fnuc_dict[name](inputs)
+    return fnuc_dict[name](x, y)
 
 
 class Tensor(UsrArry.container):
@@ -209,20 +211,28 @@ class Tensor(UsrArry.container):
         return super().__ipow__(other)
 
     def backward(self):
+        '''
+        compute grads of `bak_nodes` in the graph, based on the stack and Binary Tree.
+        '''
         self.grad = 1
-        now = self
-        baks = now.bak_nodes
-        while len(baks):
-            bak_grads = now.grad * _get_grad(now.cpt_name, baks)
-            for i in range(len(baks)):
-                baks[i].grad += bak_grads[i]
-                pass
-            
-                
-
-
+        stack = [self, ]     # [bottom, ..., top]
+        while len(stack):
+            now = stack[-1]
+            if now.bak_nodes:
+                stack.pop()
+                # import ipdb; ipdb.set_trace()
+                bak_grads = [
+                    now.grad * cur for cur in _get_grad(now.cpt_name, now.bak_nodes)]
+                for i in range(len(now.bak_nodes)):
+                    bak = now.bak_nodes[i]
+                    if isinstance(bak, Tensor):
+                        bak.grad = bak.grad + bak_grads[i]
+                        stack.append(bak)
+            else:
+                stack.pop()
 
     # matrix computation method:
+
     def transpose(self):
         res = Tensor(np.transpose(self))
         if self.need_grad:
