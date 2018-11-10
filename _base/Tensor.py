@@ -2,6 +2,17 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import numpy.lib.user_array as UsrArry
+# TODO: 改变梯度为梯度矩阵 --done
+#       矩阵求导
+#       更改`mean()`方法
+
+
+def zeros(size):
+    return Tensor(np.zeros(size))
+
+
+def ones(size):
+    return Tensor(np.ones(size))
 
 
 def raise_err(func):
@@ -13,25 +24,27 @@ def raise_err(func):
     return wrapper
 
 
-def _get_grad(name, inputs):
-    x = inputs[0]
-    y = inputs[1]
-    fnuc_dict = {
-        'add': lambda x, y: (1, 1),
-        'mul': lambda x, y: (y, x),
-        'sub': lambda x, y: (1, -1),
-        'neg': lambda x: -1,
-        'div': lambda x, y: (1/y, -x/y**2),
-        'pow': lambda x, y: (y*(x**(y-1)), np.log(x) * x**y),
-        'abs': lambda x: 1,
-        'matmul': lambda x, y: (),
-        'transpose': lambda x, y: ()
-    }
-    return fnuc_dict[name](x, y)
+# def _get_grad(name, inputs, args=None):
+#     x = inputs[0]
+#     y = inputs[1]
+#     fnuc_dict = {
+#         'add': lambda x, y: (1, 1),
+#         'mul': lambda x, y: (y, x),
+#         'sub': lambda x, y: (1, -1),
+#         'neg': lambda x: -1,
+#         'div': lambda x, y: (1/y, -x/y**2),
+#         'pow': lambda x, y: (y*(x**(y-1)), np.log(x) * x**y),
+#         'abs': lambda x: 1,
+#         'matmul': lambda x, y: (),
+#         'transpose': lambda x: 1,
+#         # `aegs` should be the num of elements of Tensor：
+#         'mean': lambda x: 1/args
+#     }
+#     return fnuc_dict[name](x, y)
 
 
 class Tensor(UsrArry.container):
-    def __init__(self, data, dtype=None, copy=True, need_grad=False,  bak_nodes=None, grad=0, node_name=None):
+    def __init__(self, data, dtype=None, copy=True, grad=None, need_grad=False, bak_nodes=None, node_name=None):
         '''
         Args:
         =====
@@ -67,8 +80,10 @@ class Tensor(UsrArry.container):
             res = self - other, then `self_in_right` = False;
             res = other - self, then `self_in_right` = True;
         '''
+        self.grad = zeros((self.shape))
         if isinstance(upper_nodes, Tensor):
             upper_nodes.need_grad = True
+            upper_nodes.grad = zeros((upper_nodes.shape))
             upper_nodes.cpt_name = name
             if not other:
                 upper_nodes.bak_nodes = (self, )
@@ -214,15 +229,35 @@ class Tensor(UsrArry.container):
         '''
         compute grads of `bak_nodes` in the graph, based on the stack and Binary Tree.
         '''
-        self.grad = 1
+        _get_grad = {
+            'add': lambda x: (1, 1),
+            'mul': lambda x: (x[1], x[0]),
+            'sub': lambda x: (1, -1),
+            'neg': lambda x: -1,
+            'div': lambda x: (1/x[1], -x[0]/x[1]**2),
+            'pow': lambda x: (x[1]*(x[0]**(x[1]-1)), np.log(x[0]) * x[0]**x[1]),
+            'abs': lambda x: 1,
+            'matmul': lambda x: (),
+            'transpose': lambda x: 1,
+            # `aegs` should be the num of elements of Tensor：
+            'mean': None
+        }
+
+        self.grad = ones(self.shape)
         stack = [self, ]     # [bottom, ..., top]
         while len(stack):
             now = stack[-1]
             if now.bak_nodes:
                 stack.pop()
                 # import ipdb; ipdb.set_trace()
+                # bak_grads = [
+                #     now.grad * cur for cur in _get_grad(now.cpt_name, now.bak_nodes)]
+
+                bak_size = now.bak_nodes.size
+                _get_grad['mean'] = lambda x: 1/bak_size
+
                 bak_grads = [
-                    now.grad * cur for cur in _get_grad(now.cpt_name, now.bak_nodes)]
+                    now.grad * cur for cur in _get_grad[now.cpt_name](now.bak_nodes)]
                 for i in range(len(now.bak_nodes)):
                     bak = now.bak_nodes[i]
                     if isinstance(bak, Tensor):
@@ -239,6 +274,12 @@ class Tensor(UsrArry.container):
             self._add_to_graph(res, 'transpose')
         return res
 
+    def mean(self, axis):
+        res = Tensor(np.mean(self, axis=axis))
+        if self.need_grad:
+            self._add_to_graph(res, 'mean')
+        return res
+
     T = transpose
 
     dot = __matmul__
@@ -247,4 +288,5 @@ class Tensor(UsrArry.container):
 if __name__ == '__main__':
     t1 = Tensor([1, 2, 3, 4])
     t2 = Tensor([4, 3, 2, 1])
-    print(type(t1.T))
+    print(t1.mean(0))
+
